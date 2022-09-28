@@ -6,7 +6,10 @@ The encoding is a kind of diff against the input, expected by halp.el.
 """
 
 import bisect
-from cStringIO import StringIO
+try:
+    from StringIO import StringIO ## for Python 2
+except ImportError:
+    from io import StringIO ## for Python 3
 import difflib
 import os
 import sys
@@ -47,11 +50,12 @@ def eval_module(input, module_dict):
     # The "+ '\n'" seems to fix a weird bug where we'd get a
     # syntax error sometimes if the last line was a '## ' line not
     # ending in a newline character. I still don't understand it.
-    def thunk(): exec '\n'.join(input) + '\n' in module_dict
+    def thunk():
+        exec( ('\n'.join(input) + '\n'), module_dict)
     output, _, exc_info, is_syn  = capturing_stdout(thunk)
     if exc_info is not None:
         lineno = get_lineno(exc_info)
-        parts = map(InputPart, input)
+        parts = [InputPart(x) for x in input ]
         parts.insert(lineno, format_exception(exc_info))
     else:
         parts = []
@@ -72,7 +76,7 @@ def eval_line(code, module_dict):
         capturing_stdout(lambda: eval(code, module_dict))
     if exc_info is not None:
         if is_syn:
-            def thunk(): exec code in module_dict
+            def thunk(): exec(code,module_dict)
             output, result, exc_info, is_syn = capturing_stdout(thunk)
     parts = []
     if output: parts.append(OutputPart(output))
@@ -126,11 +130,11 @@ class Halp:
 
 # Exception capture
 
-def format_exception((etype, value, tb), limit=None):
+def format_exception(params, limit=None):
     "Like traceback.format_exception() but returning a 'part'."
-    exc_lines = traceback.format_exception_only(etype, value)
+    exc_lines = traceback.format_exception_only(params[0], params[1])
     exc_only = ''.join(exc_lines).rstrip('\n')
-    items = extract_censored_tb(tb, limit)
+    items = extract_censored_tb(params[2], limit)
     if items:
         return CompoundPart([OutputPart('Traceback (most recent call last):'),
                              TracebackPart(items),
@@ -151,11 +155,11 @@ def extract_censored_tb(tb, limit=None):
             items[0] = filename, current_line_number, func_name, None
     return items
 
-def get_lineno((etype, value, tb)):
+def get_lineno(exec_info):
     "Return the line number where this exception should be reported."
-    if isinstance(value, SyntaxError) and value.filename == '<string>':
-        return value.lineno
-    items = traceback.extract_tb(tb)
+    if isinstance(exec_info[1], SyntaxError) and exec_info[1].filename == '<string>':
+        return exec_info[1].lineno
+    items = traceback.extract_tb(exec_info[2])
     if items:
         filename, lineno, func_name, text = items[-1]
         if filename == '<string>':
@@ -231,18 +235,21 @@ class TracebackPart:
     def __init__(self, tb_items):
         self.items = tb_items
     def count_lines(self, lnmap):
-        def item_len((filename, lineno, name, line)):
+        def item_len(item_params):
             # XXX how to make sure this count is consistent with format_traceback()?
-            if line: return 2
+            if item_params[3]: return 2
             else: return 1
         lnmap.count_output(sum(map(item_len, self.items)))
     def format(self, lnmap):
-        def fix_item((filename, lineno, name, line)):
-            if filename == '<string>':
+        def fix_item(item_params):
+            if item_params[0] == '<string>':
                 filename = source_filename
-                line = lnmap.get_input_line(lineno)
-                lineno = lnmap.fix_lineno(lineno)
-            return (filename, lineno, name, line)
+                line = lnmap.get_input_line(item_params[1])
+                lineno = lnmap.fix_lineno(item_params[1])
+                name = item_params[2]
+                return (filename,lineno,name,line)
+            else:
+                return item_params
         return format_traceback(map(fix_item, self.items))
 
 def format_traceback(tb_items):
@@ -273,7 +280,7 @@ def compute_diff(is_junk, a, b):
     i = j = 0
     triples = []
     for ai, bj, size in sm.get_matching_blocks():
-        # Invariant: 
+        # Invariant:
         #  triples is the diff for a[:i], b[:j]
         #  and the next matching block is a[ai:ai+size] == b[bj:bj+size].
         if i < ai or j < bj:
