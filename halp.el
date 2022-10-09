@@ -11,7 +11,7 @@
 
 ;; The rest of this file shouldn't need editing.
 
-(require 'cl)
+(require 'cl-lib)
 
 (defun halp-add-all-hooks ()
   (halp-add-hook 'sh-mode-hook 'sh-mode-map "\M-i" 'halp-update-sh)
