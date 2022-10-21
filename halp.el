@@ -237,5 +237,8 @@ a ;;. comment after one, replace it with one holding the result."
 
 ;; Wrap-up
 
-(halp-add-all-hooks)
+(defun halp ()
+  (interactive)
+  (halp-add-all-hooks))
+
 (provide 'halp)
