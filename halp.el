@@ -148,7 +148,7 @@ that outputs a diff."
       (set-buffer from-buffer)
       (goto-char (point-min))
       (while (not (eobp))
-        (multiple-value-bind (lineno n-del start end) (halp-scan-chunk)
+        (cl-multiple-value-bind (lineno n-del start end) (halp-scan-chunk)
           (setq status "changed")
           (halp-dbg (list 'chunk lineno n-del start end))
           (set-buffer to-buffer)
@@ -157,7 +157,7 @@ that outputs a diff."
             ;; No newline at end of buffer; add it. Otherwise the
             ;; code below will delete the last line.
             (insert-char 10 1))
-          (multiple-value-bind (start1 end1) (halp-scan-lines n-del)
+          (cl-multiple-value-bind (start1 end1) (halp-scan-lines n-del)
             (delete-region start1 end1)
             (halp-dbg (list 'deleted n-del start1 end1)))
           (insert-buffer-substring from-buffer start end)
@@ -174,13 +174,13 @@ that outputs a diff."
          (n-del (halp-scan-number))
          (n-ins (halp-scan-number)))
     (forward-line)
-    (multiple-value-bind (start end) (halp-scan-lines n-ins)
-      (values lineno n-del start end))))
+    (cl-multiple-value-bind (start end) (halp-scan-lines n-ins)
+      (cl-values lineno n-del start end))))
 
 (defun halp-scan-lines (n)
   (let ((start (point)))
     (forward-line n)
-    (values start (point))))
+    (cl-values start (point))))
 
 (defun halp-scan-number ()
   (string-to-number (halp-scan-word)))
