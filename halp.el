@@ -237,8 +237,9 @@ a ;;. comment after one, replace it with one holding the result."
 
 ;; Wrap-up
 
+;;;###autoload
 (defun halp ()
   (interactive)
-  (halp-add-all-hooks))
+  (halp-add-hook 'py-mode-hook 'py-mode-map "\M-i" 'halp-update-python))
 
 (provide 'halp)
